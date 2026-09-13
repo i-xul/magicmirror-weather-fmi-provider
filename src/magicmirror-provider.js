@@ -229,7 +229,8 @@ export class MagicMirrorFmiProvider {
                     place: this.config.location.trim(),
                     latitude: this.config.lat,
                     longitude: this.config.lon,
-                    timeZone: this.config.timezone.trim()
+                    timeZone: this.config.timezone.trim(),
+                    type: this.config.type
                 });
 
             if (this.stopped) {

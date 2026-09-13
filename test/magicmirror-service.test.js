@@ -300,6 +300,176 @@ test("fetches FMI data and builds MagicMirror weather data", async () => {
     );
 });
 
+test("fetches only forecast data for forecast type", async () => {
+    const forecastXml = buildFeatureCollection([
+        buildSeriesMember(
+            "Temperature",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    16
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    15
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "Precipitation1h",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    0.25
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    0.5
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "WeatherSymbol3",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    2
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    2
+                ]
+            ]
+        )
+    ]);
+
+    const requestedUrls = [];
+
+    const fakeFetch = async (url) => {
+        const urlString = String(url);
+        const parsedUrl = new URL(urlString);
+
+        requestedUrls.push(urlString);
+
+        const storedQueryId =
+            parsedUrl.searchParams.get("storedquery_id");
+
+        assert.equal(
+            storedQueryId,
+            "fmi::forecast::harmonie::surface::point::timevaluepair"
+        );
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => forecastXml
+        };
+    };
+
+    const weather = await getMagicMirrorWeather(
+        {
+            place: "Helsinki",
+            latitude: 60.1699,
+            longitude: 24.9384,
+            timeZone: "Europe/Helsinki",
+            type: "forecast"
+        },
+        fakeFetch
+    );
+
+    assert.equal(requestedUrls.length, 1);
+    assert.equal(weather.current, null);
+    assert.equal(weather.forecast.length, 1);
+    assert.equal(
+        weather.forecast[0].precipitationAmount,
+        0.75
+    );
+});
+
+test("fetches only forecast data for daily type", async () => {
+    const forecastXml = buildFeatureCollection([
+        buildSeriesMember(
+            "Temperature",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    16
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    15
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "Precipitation1h",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    0.25
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    0.5
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "WeatherSymbol3",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    2
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    2
+                ]
+            ]
+        )
+    ]);
+
+    const requestedUrls = [];
+
+    const fakeFetch = async (url) => {
+        const urlString = String(url);
+        const parsedUrl = new URL(urlString);
+
+        requestedUrls.push(urlString);
+
+        const storedQueryId =
+            parsedUrl.searchParams.get("storedquery_id");
+
+        assert.equal(
+            storedQueryId,
+            "fmi::forecast::harmonie::surface::point::timevaluepair"
+        );
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => forecastXml
+        };
+    };
+
+    const weather = await getMagicMirrorWeather(
+        {
+            place: "Helsinki",
+            latitude: 60.1699,
+            longitude: 24.9384,
+            timeZone: "Europe/Helsinki",
+            type: "daily"
+        },
+        fakeFetch
+    );
+
+    assert.equal(requestedUrls.length, 1);
+    assert.equal(weather.current, null);
+    assert.equal(weather.forecast.length, 1);
+});
+
 test("rejects invalid service configuration", async () => {
     await assert.rejects(
         () =>

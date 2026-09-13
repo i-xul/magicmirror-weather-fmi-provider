@@ -147,7 +147,8 @@ test("delivers current weather through MagicMirror callback", async () => {
                 place: "Helsinki",
                 latitude: 60.1699,
                 longitude: 24.9384,
-                timeZone: "Europe/Helsinki"
+                timeZone: "Europe/Helsinki",
+                type: "current"
             }
         ]
     );

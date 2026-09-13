@@ -104,9 +104,42 @@ export async function getMagicMirrorWeather(
         place,
         latitude,
         longitude,
-        timeZone
+        timeZone,
+        type
     } = config;
 
+    /*
+     * Forecast and daily MagicMirror instances need only FMI forecast data.
+     * Avoid fetching observations for these provider types because the
+     * observation response would never be used.
+     */
+    if (
+        type === "forecast" ||
+        type === "daily"
+    ) {
+        const forecastTimeline =
+            await getForecast(
+                place,
+                fetchImpl
+            );
+
+        return buildMagicMirrorWeatherData(
+            null,
+            forecastTimeline,
+            latitude,
+            longitude,
+            timeZone
+        );
+    }
+
+    /*
+     * Current weather still needs both datasets:
+     *
+     * - observations provide the measured current values
+     * - forecast data provides WeatherSymbol3 for the current weather icon
+     *
+     * Keep the requests parallel because neither depends on the other.
+     */
     const [
         observation,
         forecastTimeline

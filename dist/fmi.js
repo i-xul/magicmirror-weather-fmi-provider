@@ -7443,8 +7443,22 @@ async function getMagicMirrorWeather(config, fetchImpl = fetch) {
     place,
     latitude,
     longitude,
-    timeZone
+    timeZone,
+    type
   } = config;
+  if (type === "forecast" || type === "daily") {
+    const forecastTimeline2 = await getForecast(
+      place,
+      fetchImpl
+    );
+    return buildMagicMirrorWeatherData(
+      null,
+      forecastTimeline2,
+      latitude,
+      longitude,
+      timeZone
+    );
+  }
   const [
     observation,
     forecastTimeline
@@ -7614,7 +7628,8 @@ var init_magicmirror_provider = __esm({
             place: this.config.location.trim(),
             latitude: this.config.lat,
             longitude: this.config.lon,
-            timeZone: this.config.timezone.trim()
+            timeZone: this.config.timezone.trim(),
+            type: this.config.type
           });
           if (this.stopped) {
             return;
