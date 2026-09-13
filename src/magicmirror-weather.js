@@ -23,19 +23,25 @@
 /**
  * Convert an FMI WeatherSymbol3 value to a MagicMirror² weather type.
  *
- * Day/night-specific handling for clear and partly cloudy conditions will
- * be added separately once sunrise and sunset data are available.
+ * Daylight information is supplied by the caller so this mapper remains
+ * independent of geographic coordinates and astronomical calculations.
  *
  * @param {number} weatherSymbol FMI WeatherSymbol3 value.
+ * @param {boolean} daylight True when the sun is at or above the horizon.
  * @returns {string|null} MagicMirror² weather type, or null if unsupported.
+ * @throws {TypeError} If daylight is not a boolean.
  */
-export function mapFmiWeatherSymbol(weatherSymbol) {
+export function mapFmiWeatherSymbol(weatherSymbol, daylight) {
+    if (typeof daylight !== "boolean") {
+        throw new TypeError("Daylight must be a boolean");
+    }
+
     switch (weatherSymbol) {
         case 1:
-            return "day-sunny";
+            return daylight ? "day-sunny" : "night-clear";
 
         case 2:
-            return "day-cloudy";
+            return daylight ? "day-cloudy" : "night-alt-cloudy";
 
         case 3:
             return "cloudy";
@@ -43,12 +49,12 @@ export function mapFmiWeatherSymbol(weatherSymbol) {
         case 21:
         case 22:
         case 23:
-            return "showers";
+            return daylight ? "day-showers" : "night-alt-showers";
 
         case 31:
         case 32:
         case 33:
-            return "rain";
+            return daylight ? "day-rain" : "night-alt-rain";
 
         case 41:
         case 42:
@@ -56,13 +62,15 @@ export function mapFmiWeatherSymbol(weatherSymbol) {
         case 51:
         case 52:
         case 53:
-            return "snow";
+            return daylight ? "day-snow" : "night-alt-snow";
 
         case 61:
         case 62:
         case 63:
         case 64:
-            return "thunderstorm";
+            return daylight
+                ? "day-thunderstorm"
+                : "night-alt-thunderstorm";
 
         default:
             return null;
