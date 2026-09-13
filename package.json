@@ -1,0 +1,21 @@
+{
+  "name": "magicmirror-weather-fmi-provider",
+  "version": "0.1.0",
+  "description": "Finnish Meteorological Institute (FMI) weather provider for MagicMirror²",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "magicmirror",
+    "magicmirror2",
+    "weather",
+    "fmi",
+    "finland"
+  ],
+  "author": "H A (i-xul)",
+  "license": "MIT",
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1"
+  }
+}
