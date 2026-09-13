@@ -17,6 +17,7 @@
   "author": "H A (i-xul)",
   "license": "MIT",
   "dependencies": {
-    "fast-xml-parser": "^5.11.1"
+    "fast-xml-parser": "^5.11.1",
+    "sunrise-sunset-js": "^3.3.1"
   }
 }
