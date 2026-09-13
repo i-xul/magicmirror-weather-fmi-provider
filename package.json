@@ -20,7 +20,7 @@
   "author": "H A (i-xul)",
   "license": "MIT",
   "engines": {
-    "node": ">=22.22.2"
+    "node": ">=22.22.2 <23 || >=24"
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.1",

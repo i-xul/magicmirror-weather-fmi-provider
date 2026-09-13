@@ -1,1 +1,2 @@
-test/fixtures/*.xml whitespace=-trailing-space,-space-before-tabdist/fmi.js text eol=lf
+test/fixtures/*.xml whitespace=-trailing-space,-space-before-tab
+dist/fmi.js text eol=lf
