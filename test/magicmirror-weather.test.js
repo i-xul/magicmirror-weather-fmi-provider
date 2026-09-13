@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+    findNearestWeatherSymbol,
     mapFmiWeatherSymbol
 } from "../src/magicmirror-weather.js";
 
@@ -117,6 +118,153 @@ test("requires daylight information", () => {
 
     assert.throws(
         () => mapFmiWeatherSymbol(1, "day"),
+        TypeError
+    );
+});
+
+test("finds weather symbol nearest to observation time", async () => {
+
+    const forecastTimeline = [
+        {
+            time: "2026-09-13T12:00:00Z",
+            weatherSymbol: 1
+        },
+        {
+            time: "2026-09-13T13:00:00Z",
+            weatherSymbol: 2
+        },
+        {
+            time: "2026-09-13T14:00:00Z",
+            weatherSymbol: 3
+        }
+    ];
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T13:20:00Z",
+            forecastTimeline
+        ),
+        2
+    );
+});
+
+test("prefers earlier forecast when timestamps are equally close", async () => {
+
+    const forecastTimeline = [
+        {
+            time: "2026-09-13T12:00:00Z",
+            weatherSymbol: 1
+        },
+        {
+            time: "2026-09-13T13:00:00Z",
+            weatherSymbol: 2
+        }
+    ];
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T12:30:00Z",
+            forecastTimeline
+        ),
+        1
+    );
+});
+
+test("ignores forecast entries without valid weather symbols", async () => {
+
+    const forecastTimeline = [
+        {
+            time: "2026-09-13T13:00:00Z"
+        },
+        {
+            time: "2026-09-13T14:00:00Z",
+            weatherSymbol: 3
+        }
+    ];
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T13:10:00Z",
+            forecastTimeline
+        ),
+        3
+    );
+});
+
+test("returns null when no valid weather symbol is available", async () => {
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T13:00:00Z",
+            []
+        ),
+        null
+    );
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T13:00:00Z",
+            [
+                {
+                    time: "2026-09-13T13:00:00Z",
+                    weatherSymbol: null
+                }
+            ]
+        ),
+        null
+    );
+});
+
+test("rejects weather symbols more than 90 minutes away", () => {
+    const forecastTimeline = [
+        {
+            time: "2026-09-13T10:00:00Z",
+            weatherSymbol: 1
+        },
+        {
+            time: "2026-09-13T16:00:00Z",
+            weatherSymbol: 3
+        }
+    ];
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T13:00:00Z",
+            forecastTimeline
+        ),
+        null
+    );
+});
+
+test("accepts weather symbol exactly 90 minutes away", () => {
+    const forecastTimeline = [
+        {
+            time: "2026-09-13T11:30:00Z",
+            weatherSymbol: 2
+        }
+    ];
+
+    assert.equal(
+        findNearestWeatherSymbol(
+            "2026-09-13T13:00:00Z",
+            forecastTimeline
+        ),
+        2
+    );
+});
+
+test("rejects invalid nearest-weather-symbol input", async () => {
+
+    assert.throws(
+        () => findNearestWeatherSymbol("invalid", []),
+        TypeError
+    );
+
+    assert.throws(
+        () => findNearestWeatherSymbol(
+            "2026-09-13T13:00:00Z",
+            null
+        ),
         TypeError
     );
 });
