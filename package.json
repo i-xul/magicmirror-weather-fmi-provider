@@ -4,8 +4,11 @@
   "description": "Finnish Meteorological Institute (FMI) weather provider for MagicMirror²",
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-dist.mjs",
     "test": "node --test test/*.test.js",
-    "test:live": "node --test test/fmi-live.integration.js"
+    "test:bundle": "npm run build && node test/bundle-smoke.cjs",
+    "test:live": "node --test test/fmi-live.integration.js",
+    "check": "npm test && npm run test:bundle"
   },
   "keywords": [
     "magicmirror",
@@ -16,8 +19,14 @@
   ],
   "author": "H A (i-xul)",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.22.2"
+  },
   "dependencies": {
     "fast-xml-parser": "^5.11.1",
     "sunrise-sunset-js": "^3.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
