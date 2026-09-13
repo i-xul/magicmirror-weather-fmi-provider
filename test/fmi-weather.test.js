@@ -41,7 +41,10 @@ test("builds weather timeline from FMI parameter series", () => {
     assert.equal(typeof timeline[0].humidity, "number");
     assert.equal(typeof timeline[0].windDirection, "number");
     assert.equal(typeof timeline[0].windSpeed, "number");
-    assert.equal(typeof timeline[0].precipitation, "number");
+    assert.equal(
+        typeof timeline[0].cumulativePrecipitation,
+        "number"
+    );
     assert.equal(typeof timeline[0].cloudCover, "number");
 });
 
@@ -142,5 +145,57 @@ test("maps FMI WeatherSymbol3 to normalized weather symbol", () => {
         time: "2026-09-13T13:00:00Z",
         temperature: 15.5,
         weatherSymbol: 2
+    });
+});
+
+test("maps hourly FMI precipitation to normalized precipitation field", () => {
+    const parameters = new Map([
+        ["Temperature", [
+            {
+                time: "2026-09-13T13:00:00Z",
+                value: 15.5
+            }
+        ]],
+        ["Precipitation1h", [
+            {
+                time: "2026-09-13T13:00:00Z",
+                value: 0.7
+            }
+        ]]
+    ]);
+
+    const timeline = buildWeatherTimeline(parameters);
+
+    assert.equal(timeline.length, 1);
+
+    assert.deepEqual(timeline[0], {
+        time: "2026-09-13T13:00:00Z",
+        temperature: 15.5,
+        precipitation: 0.7
+    });
+});
+
+test("keeps cumulative and hourly precipitation separate", () => {
+    const parameters = new Map([
+        ["PrecipitationAmount", [
+            {
+                time: "2026-09-13T13:00:00Z",
+                value: 4.2
+            }
+        ]],
+        ["Precipitation1h", [
+            {
+                time: "2026-09-13T13:00:00Z",
+                value: 0.6
+            }
+        ]]
+    ]);
+
+    const timeline = buildWeatherTimeline(parameters);
+
+    assert.deepEqual(timeline[0], {
+        time: "2026-09-13T13:00:00Z",
+        cumulativePrecipitation: 4.2,
+        precipitation: 0.6
     });
 });

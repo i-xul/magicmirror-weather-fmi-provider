@@ -27,7 +27,7 @@ const HARMONIE_FORECAST_PARAMETERS = [
     "Humidity",
     "WindDirection",
     "WindSpeedMS",
-    "PrecipitationAmount",
+    "Precipitation1h",
     "TotalCloudCover",
     "Visibility",
     "WindGust",

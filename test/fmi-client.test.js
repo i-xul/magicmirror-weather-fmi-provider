@@ -35,6 +35,14 @@ test("builds FMI HARMONIE point forecast URL", () => {
     );
 
     assert.equal(url.searchParams.get("place"), "Helsinki");
+
+    const parameters = url.searchParams
+        .get("parameters")
+        .split(",");
+
+    assert.ok(parameters.includes("Precipitation1h"));
+    assert.ok(parameters.includes("WeatherSymbol3"));
+    assert.ok(!parameters.includes("PrecipitationAmount"));
 });
 
 test("trims FMI place names", () => {
