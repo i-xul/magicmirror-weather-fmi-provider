@@ -4,7 +4,8 @@
   "description": "Finnish Meteorological Institute (FMI) weather provider for MagicMirror²",
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test test/*.test.js",
+    "test:live": "node --test test/fmi-live.integration.js"
   },
   "keywords": [
     "magicmirror",
