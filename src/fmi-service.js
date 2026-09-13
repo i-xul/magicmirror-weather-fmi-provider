@@ -25,7 +25,32 @@ import { parseFmiTimeValuePairXml } from "./fmi-parser.js";
 import { buildWeatherTimeline } from "./fmi-weather.js";
 
 /**
- * Fetch and normalize the latest FMI weather observation.
+ * Check whether an FMI observation contains all measured values required
+ * for a MagicMirror² current weather object.
+ *
+ * Sunrise, sunset and weatherType are added later by the MagicMirror
+ * transformation layer, so they are not required here.
+ *
+ * @param {object} observation Normalized FMI observation.
+ * @returns {boolean} Whether all required measured values are available.
+ */
+function isCompleteCurrentObservation(observation) {
+    const requiredFields = [
+        "temperature",
+        "humidity",
+        "windDirection",
+        "windSpeed"
+    ];
+
+    return requiredFields.every(
+        (field) =>
+            typeof observation?.[field] === "number" &&
+            Number.isFinite(observation[field])
+    );
+}
+
+/**
+ * Fetch and normalize the latest complete FMI weather observation.
  *
  * @param {string} place FMI place name.
  * @param {Function} fetchImpl Fetch-compatible function.
@@ -40,7 +65,7 @@ export async function getCurrentWeather(place, fetchImpl = fetch) {
     for (let index = timeline.length - 1; index >= 0; index -= 1) {
         const observation = timeline[index];
 
-        if (typeof observation.temperature === "number") {
+        if (isCompleteCurrentObservation(observation)) {
             return observation;
         }
     }

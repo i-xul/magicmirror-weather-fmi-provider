@@ -37,7 +37,10 @@ test("returns latest normalized FMI weather observation", async () => {
         text: async () => observationFixture
     });
 
-    const current = await getCurrentWeather("Helsinki", fakeFetch);
+    const current = await getCurrentWeather(
+        "Helsinki",
+        fakeFetch
+    );
 
     assert.ok(current);
     assert.equal(typeof current.time, "string");
@@ -52,7 +55,10 @@ test("returns normalized FMI forecast timeline", async () => {
         text: async () => forecastFixture
     });
 
-    const forecast = await getForecast("Helsinki", fakeFetch);
+    const forecast = await getForecast(
+        "Helsinki",
+        fakeFetch
+    );
 
     assert.ok(Array.isArray(forecast));
     assert.ok(forecast.length > 0);
@@ -61,7 +67,7 @@ test("returns normalized FMI forecast timeline", async () => {
     assert.equal(typeof forecast[0].temperature, "number");
 });
 
-test("skips newer incomplete observations without temperature", async () => {
+test("skips newer incomplete observations", async () => {
     const xml = `
         <wfs:FeatureCollection
             xmlns:wfs="http://www.opengis.net/wfs/2.0"
@@ -82,6 +88,12 @@ test("skips newer incomplete observations without temperature", async () => {
                                     <wml2:value>15.6</wml2:value>
                                 </wml2:MeasurementTVP>
                             </wml2:point>
+                            <wml2:point>
+                                <wml2:MeasurementTVP>
+                                    <wml2:time>2026-09-13T13:40:00Z</wml2:time>
+                                    <wml2:value>15.7</wml2:value>
+                                </wml2:MeasurementTVP>
+                            </wml2:point>
                         </wml2:MeasurementTimeseries>
                     </om:result>
                 </omso:PointTimeSeriesObservation>
@@ -90,13 +102,47 @@ test("skips newer incomplete observations without temperature", async () => {
             <wfs:member>
                 <omso:PointTimeSeriesObservation>
                     <om:observedProperty
-                        xlink:href="https://opendata.fmi.fi/meta?param=vis" />
+                        xlink:href="https://opendata.fmi.fi/meta?param=rh" />
                     <om:result>
                         <wml2:MeasurementTimeseries>
                             <wml2:point>
                                 <wml2:MeasurementTVP>
-                                    <wml2:time>2026-09-13T13:40:00Z</wml2:time>
-                                    <wml2:value>30000</wml2:value>
+                                    <wml2:time>2026-09-13T13:30:00Z</wml2:time>
+                                    <wml2:value>89</wml2:value>
+                                </wml2:MeasurementTVP>
+                            </wml2:point>
+                        </wml2:MeasurementTimeseries>
+                    </om:result>
+                </omso:PointTimeSeriesObservation>
+            </wfs:member>
+
+            <wfs:member>
+                <omso:PointTimeSeriesObservation>
+                    <om:observedProperty
+                        xlink:href="https://opendata.fmi.fi/meta?param=wd_10min" />
+                    <om:result>
+                        <wml2:MeasurementTimeseries>
+                            <wml2:point>
+                                <wml2:MeasurementTVP>
+                                    <wml2:time>2026-09-13T13:30:00Z</wml2:time>
+                                    <wml2:value>245</wml2:value>
+                                </wml2:MeasurementTVP>
+                            </wml2:point>
+                        </wml2:MeasurementTimeseries>
+                    </om:result>
+                </omso:PointTimeSeriesObservation>
+            </wfs:member>
+
+            <wfs:member>
+                <omso:PointTimeSeriesObservation>
+                    <om:observedProperty
+                        xlink:href="https://opendata.fmi.fi/meta?param=ws_10min" />
+                    <om:result>
+                        <wml2:MeasurementTimeseries>
+                            <wml2:point>
+                                <wml2:MeasurementTVP>
+                                    <wml2:time>2026-09-13T13:30:00Z</wml2:time>
+                                    <wml2:value>2.9</wml2:value>
                                 </wml2:MeasurementTVP>
                             </wml2:point>
                         </wml2:MeasurementTimeseries>
@@ -113,9 +159,18 @@ test("skips newer incomplete observations without temperature", async () => {
         text: async () => xml
     });
 
-    const current = await getCurrentWeather("Helsinki", fakeFetch);
+    const current = await getCurrentWeather(
+        "Helsinki",
+        fakeFetch
+    );
 
     assert.ok(current);
-    assert.equal(current.time, "2026-09-13T13:30:00Z");
-    assert.equal(current.temperature, 15.6);
+
+    assert.deepEqual(current, {
+        time: "2026-09-13T13:30:00Z",
+        temperature: 15.6,
+        humidity: 89,
+        windDirection: 245,
+        windSpeed: 2.9
+    });
 });
