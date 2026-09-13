@@ -23,7 +23,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { fetchFmiForecast } from "../src/fmi-client.js";
+import {
+    fetchFmiForecast,
+    fetchFmiObservations
+} from "../src/fmi-client.js";
 import { parseFmiTimeValuePairXml } from "../src/fmi-parser.js";
 import { buildWeatherTimeline } from "../src/fmi-weather.js";
 
@@ -54,4 +57,27 @@ test("fetches and transforms live FMI forecast", async () => {
     assert.equal(typeof first.temperature, "number");
     assert.equal(typeof first.humidity, "number");
     assert.equal(typeof first.windSpeed, "number");
+});
+
+test("fetches and transforms live FMI observations", async () => {
+    const xml = await fetchFmiObservations("Helsinki");
+
+    assert.equal(typeof xml, "string");
+    assert.ok(xml.length > 0);
+
+    const parameters = parseFmiTimeValuePairXml(xml);
+
+    assert.ok(parameters.size > 0);
+
+    const timeline = buildWeatherTimeline(parameters);
+
+    assert.ok(Array.isArray(timeline));
+    assert.ok(timeline.length > 0);
+
+    const latest = timeline.at(-1);
+
+    assert.match(
+        latest.time,
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
+    );
 });

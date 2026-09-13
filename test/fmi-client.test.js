@@ -15,7 +15,9 @@ import assert from "node:assert/strict";
 
 import {
     buildFmiForecastUrl,
-    fetchFmiForecast
+    buildFmiObservationUrl,
+    fetchFmiForecast,
+    fetchFmiObservations
 } from "../src/fmi-client.js";
 
 test("builds FMI HARMONIE point forecast URL", () => {
@@ -85,4 +87,33 @@ test("throws on unsuccessful FMI response", async () => {
         fetchFmiForecast("Helsinki", fakeFetch),
         /FMI request failed with HTTP 503 Service Unavailable/
     );
+});
+
+test("builds FMI weather observation URL", () => {
+    const url = buildFmiObservationUrl("Helsinki");
+
+    assert.equal(url.origin, "https://opendata.fmi.fi");
+    assert.equal(url.pathname, "/wfs");
+
+    assert.equal(
+        url.searchParams.get("storedquery_id"),
+        "fmi::observations::weather::timevaluepair"
+    );
+
+    assert.equal(url.searchParams.get("place"), "Helsinki");
+});
+
+test("returns XML from successful FMI observation response", async () => {
+    const expectedXml = "<FeatureCollection />";
+
+    const fakeFetch = async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => expectedXml
+    });
+
+    const xml = await fetchFmiObservations("Helsinki", fakeFetch);
+
+    assert.equal(xml, expectedXml);
 });

@@ -23,18 +23,30 @@
  * Keeping the mapping in one place makes it easier to add or rename FMI
  * parameters without changing the timeline-building logic.
  */
-const PARAMETER_MAP = new Map([
-    ["Temperature", "temperature"],
-    ["Humidity", "humidity"],
-    ["WindDirection", "windDirection"],
-    ["WindSpeedMS", "windSpeed"],
-    ["PrecipitationAmount", "precipitation"],
-    ["TotalCloudCover", "cloudCover"],
-    ["Visibility", "visibility"],
-    ["WindGust", "windGust"],
-    ["Pressure", "pressure"],
-    ["DewPoint", "dewPoint"]
-]);
+const PARAMETER_MAP = {
+    // FMI HARMONIE forecast parameters.
+    Temperature: "temperature",
+    Humidity: "humidity",
+    WindDirection: "windDirection",
+    WindSpeedMS: "windSpeed",
+    PrecipitationAmount: "precipitation",
+    TotalCloudCover: "cloudCover",
+    Visibility: "visibility",
+    WindGust: "windGust",
+    Pressure: "pressure",
+    DewPoint: "dewPoint",
+
+    // FMI surface-weather observation parameters.
+    t2m: "temperature",
+    rh: "humidity",
+    wd_10min: "windDirection",
+    ws_10min: "windSpeed",
+    wg_10min: "windGust",
+    r_1h: "precipitation",
+    vis: "visibility",
+    p_sea: "pressure",
+    td: "dewPoint"
+};
 
 /**
  * Build a chronological weather timeline from parsed FMI parameter series.
@@ -71,8 +83,8 @@ export function buildWeatherTimeline(parameters) {
 
     const timelineByTime = new Map();
 
-    for (const [fmiParameter, fieldName] of PARAMETER_MAP) {
-        const values = parameters.get(fmiParameter);
+    for (const [sourceParameter, targetField] of Object.entries(PARAMETER_MAP)) {
+        const values = parameters.get(sourceParameter);
 
         if (!Array.isArray(values)) {
             continue;
@@ -89,7 +101,7 @@ export function buildWeatherTimeline(parameters) {
                 });
             }
 
-            timelineByTime.get(entry.time)[fieldName] = entry.value;
+            timelineByTime.get(entry.time)[targetField] = entry.value;
         }
     }
 

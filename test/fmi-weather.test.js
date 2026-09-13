@@ -78,3 +78,48 @@ test("rejects invalid parameter input", () => {
         }
     );
 });
+
+test("maps FMI observation parameters to normalized weather fields", () => {
+    const parameters = new Map([
+        ["t2m", [
+            { time: "2026-09-13T13:30:00Z", value: 15.6 }
+        ]],
+        ["rh", [
+            { time: "2026-09-13T13:30:00Z", value: 89 }
+        ]],
+        ["wd_10min", [
+            { time: "2026-09-13T13:30:00Z", value: 245 }
+        ]],
+        ["ws_10min", [
+            { time: "2026-09-13T13:30:00Z", value: 2.9 }
+        ]],
+        ["wg_10min", [
+            { time: "2026-09-13T13:30:00Z", value: 4.7 }
+        ]],
+        ["p_sea", [
+            { time: "2026-09-13T13:30:00Z", value: 1011.6 }
+        ]],
+        ["vis", [
+            { time: "2026-09-13T13:30:00Z", value: 30920 }
+        ]],
+        ["td", [
+            { time: "2026-09-13T13:30:00Z", value: 13.7 }
+        ]]
+    ]);
+
+    const timeline = buildWeatherTimeline(parameters);
+
+    assert.equal(timeline.length, 1);
+
+    assert.deepEqual(timeline[0], {
+        time: "2026-09-13T13:30:00Z",
+        temperature: 15.6,
+        humidity: 89,
+        windDirection: 245,
+        windSpeed: 2.9,
+        windGust: 4.7,
+        pressure: 1011.6,
+        visibility: 30920,
+        dewPoint: 13.7
+    });
+});
