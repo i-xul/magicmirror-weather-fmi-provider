@@ -35,6 +35,7 @@ const PARAMETER_MAP = {
     WindGust: "windGust",
     Pressure: "pressure",
     DewPoint: "dewPoint",
+    WeatherSymbol3: "weatherSymbol",
 
     // FMI surface-weather observation parameters.
     t2m: "temperature",

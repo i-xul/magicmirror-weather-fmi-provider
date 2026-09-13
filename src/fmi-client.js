@@ -22,6 +22,20 @@ const FMI_WFS_URL = "https://opendata.fmi.fi/wfs";
 const HARMONIE_POINT_FORECAST_QUERY =
     "fmi::forecast::harmonie::surface::point::timevaluepair";
 
+const HARMONIE_FORECAST_PARAMETERS = [
+    "Temperature",
+    "Humidity",
+    "WindDirection",
+    "WindSpeedMS",
+    "PrecipitationAmount",
+    "TotalCloudCover",
+    "Visibility",
+    "WindGust",
+    "Pressure",
+    "DewPoint",
+    "WeatherSymbol3"
+].join(",");
+
 const WEATHER_OBSERVATION_QUERY =
     "fmi::observations::weather::timevaluepair";
 
@@ -46,7 +60,8 @@ export function buildFmiForecastUrl(place) {
         version: "2.0.0",
         request: "getFeature",
         storedquery_id: HARMONIE_POINT_FORECAST_QUERY,
-        place: place.trim()
+        place: place.trim(),
+        parameters: HARMONIE_FORECAST_PARAMETERS
     }).toString();
 
     return url;

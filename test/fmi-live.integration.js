@@ -41,6 +41,7 @@ test("fetches and transforms live FMI forecast", async () => {
     assert.ok(parameters.has("Temperature"));
     assert.ok(parameters.has("Humidity"));
     assert.ok(parameters.has("WindSpeedMS"));
+    assert.ok(parameters.has("WeatherSymbol3"));
 
     const timeline = buildWeatherTimeline(parameters);
 
@@ -57,6 +58,7 @@ test("fetches and transforms live FMI forecast", async () => {
     assert.equal(typeof first.temperature, "number");
     assert.equal(typeof first.humidity, "number");
     assert.equal(typeof first.windSpeed, "number");
+    assert.equal(typeof first.weatherSymbol, "number");
 });
 
 test("fetches and transforms live FMI observations", async () => {

@@ -123,3 +123,24 @@ test("maps FMI observation parameters to normalized weather fields", () => {
         dewPoint: 13.7
     });
 });
+
+test("maps FMI WeatherSymbol3 to normalized weather symbol", () => {
+    const parameters = new Map([
+        ["Temperature", [
+            { time: "2026-09-13T13:00:00Z", value: 15.5 }
+        ]],
+        ["WeatherSymbol3", [
+            { time: "2026-09-13T13:00:00Z", value: 2 }
+        ]]
+    ]);
+
+    const timeline = buildWeatherTimeline(parameters);
+
+    assert.equal(timeline.length, 1);
+
+    assert.deepEqual(timeline[0], {
+        time: "2026-09-13T13:00:00Z",
+        temperature: 15.5,
+        weatherSymbol: 2
+    });
+});
