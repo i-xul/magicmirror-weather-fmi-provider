@@ -84,17 +84,159 @@ test("returns XML from successful FMI response", async () => {
     assert.equal(xml, expectedXml);
 });
 
-test("throws on unsuccessful FMI response", async () => {
-    const fakeFetch = async () => ({
-        ok: false,
-        status: 503,
-        statusText: "Service Unavailable"
-    });
+test("throws after retryable FMI responses keep failing", async () => {
+    let fetchCount = 0;
+    const retryDelays = [];
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        return {
+            ok: false,
+            status: 503,
+            statusText: "Service Unavailable"
+        };
+    };
+
+    const fakeDelay = async (milliseconds) => {
+        retryDelays.push(milliseconds);
+    };
 
     await assert.rejects(
-        fetchFmiForecast("Helsinki", fakeFetch),
+        fetchFmiForecast(
+            "Helsinki",
+            fakeFetch,
+            fakeDelay
+        ),
         /FMI request failed with HTTP 503 Service Unavailable/
     );
+
+    assert.equal(fetchCount, 3);
+
+    assert.deepEqual(
+        retryDelays,
+        [
+            500,
+            1000
+        ]
+    );
+});
+
+test("retries temporary HTTP failure and then succeeds", async () => {
+    const expectedXml = "<FeatureCollection />";
+    let fetchCount = 0;
+    const retryDelays = [];
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        if (fetchCount === 1) {
+            return {
+                ok: false,
+                status: 503,
+                statusText: "Service Unavailable"
+            };
+        }
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => expectedXml
+        };
+    };
+
+    const fakeDelay = async (milliseconds) => {
+        retryDelays.push(milliseconds);
+    };
+
+    const xml = await fetchFmiForecast(
+        "Helsinki",
+        fakeFetch,
+        fakeDelay
+    );
+
+    assert.equal(xml, expectedXml);
+    assert.equal(fetchCount, 2);
+
+    assert.deepEqual(
+        retryDelays,
+        [
+            500
+        ]
+    );
+});
+
+test("retries network failure and then succeeds", async () => {
+    const expectedXml = "<FeatureCollection />";
+    let fetchCount = 0;
+    const retryDelays = [];
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        if (fetchCount === 1) {
+            throw new Error("Temporary network failure");
+        }
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => expectedXml
+        };
+    };
+
+    const fakeDelay = async (milliseconds) => {
+        retryDelays.push(milliseconds);
+    };
+
+    const xml = await fetchFmiForecast(
+        "Helsinki",
+        fakeFetch,
+        fakeDelay
+    );
+
+    assert.equal(xml, expectedXml);
+    assert.equal(fetchCount, 2);
+
+    assert.deepEqual(
+        retryDelays,
+        [
+            500
+        ]
+    );
+});
+
+test("does not retry permanent client errors", async () => {
+    let fetchCount = 0;
+    const retryDelays = [];
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        return {
+            ok: false,
+            status: 400,
+            statusText: "Bad Request"
+        };
+    };
+
+    const fakeDelay = async (milliseconds) => {
+        retryDelays.push(milliseconds);
+    };
+
+    await assert.rejects(
+        fetchFmiForecast(
+            "Helsinki",
+            fakeFetch,
+            fakeDelay
+        ),
+        /FMI request failed with HTTP 400 Bad Request/
+    );
+
+    assert.equal(fetchCount, 1);
+    assert.deepEqual(retryDelays, []);
 });
 
 test("builds FMI weather observation URL", () => {

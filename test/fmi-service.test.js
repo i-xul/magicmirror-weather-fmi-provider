@@ -134,8 +134,8 @@ test("does not cache failed forecast requests", async () => {
         if (fetchCount === 1) {
             return {
                 ok: false,
-                status: 503,
-                statusText: "Service Unavailable",
+                status: 400,
+                statusText: "Bad Request",
                 text: async () => ""
             };
         }
@@ -150,7 +150,7 @@ test("does not cache failed forecast requests", async () => {
 
     await assert.rejects(
         getForecast("Helsinki", fakeFetch),
-        /FMI request failed with HTTP 503 Service Unavailable/
+        /FMI request failed with HTTP 400 Bad Request/
     );
 
     const forecast = await getForecast(

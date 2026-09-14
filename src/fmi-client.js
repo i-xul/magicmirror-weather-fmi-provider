@@ -3,16 +3,16 @@
  * Repository: https://github.com/i-xul/magicmirror-weather-fmi-provider
  * File: src/fmi-client.js
  * Created: 2026-09-13
- * Version: 0.1.0
+ * Version: 0.2.0
  *
  * Purpose:
- * Fetch HARMONIE point forecast data from the Finnish Meteorological
- * Institute (FMI) open-data WFS service.
+ * Fetch weather data from the Finnish Meteorological Institute (FMI)
+ * open-data WFS service.
  *
  * Workflow:
  * 1. Validate the requested location.
- * 2. Build an FMI WFS stored-query URL.
- * 3. Fetch the forecast from FMI.
+ * 2. Build the appropriate FMI WFS stored-query URL.
+ * 3. Fetch data from FMI with limited retries for temporary failures.
  * 4. Validate the HTTP response.
  * 5. Return the raw XML document for parsing by fmi-parser.js.
  */
@@ -38,6 +38,131 @@ const HARMONIE_FORECAST_PARAMETERS = [
 
 const WEATHER_OBSERVATION_QUERY =
     "fmi::observations::weather::timevaluepair";
+
+const MAX_REQUEST_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [
+    500,
+    1000
+];
+
+/**
+ * Wait for a retry delay.
+ *
+ * Kept as an injectable dependency in request helpers so unit tests can
+ * verify retry behaviour without actually sleeping.
+ *
+ * @param {number} milliseconds Delay duration.
+ * @returns {Promise<void>}
+ */
+function delay(milliseconds) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, milliseconds);
+    });
+}
+
+/**
+ * Determine whether an HTTP response represents a temporary failure that is
+ * appropriate to retry.
+ *
+ * Retry:
+ * - 408 Request Timeout
+ * - 429 Too Many Requests
+ * - all 5xx server errors
+ *
+ * Other 4xx responses normally indicate a permanent request problem and are
+ * returned immediately without retrying.
+ *
+ * @param {number} status HTTP status code.
+ * @returns {boolean} Whether the request should be retried.
+ */
+function isRetryableHttpStatus(status) {
+    return (
+        status === 408 ||
+        status === 429 ||
+        (
+            status >= 500 &&
+            status <= 599
+        )
+    );
+}
+
+/**
+ * Fetch an FMI URL with limited retries for temporary failures.
+ *
+ * Network-level fetch failures and retryable HTTP responses are attempted up
+ * to three times in total. Permanent HTTP errors fail immediately.
+ *
+ * @param {URL} url FMI request URL.
+ * @param {Function} fetchImpl Fetch-compatible function.
+ * @param {Function} delayImpl Delay function used between retries.
+ * @returns {Promise<object>} Successful Fetch Response-like object.
+ */
+async function fetchFmiResponse(
+    url,
+    fetchImpl,
+    delayImpl
+) {
+    if (typeof fetchImpl !== "function") {
+        throw new TypeError("fetchImpl must be a function");
+    }
+
+    if (typeof delayImpl !== "function") {
+        throw new TypeError("delayImpl must be a function");
+    }
+
+    for (
+        let attempt = 0;
+        attempt < MAX_REQUEST_ATTEMPTS;
+        attempt += 1
+    ) {
+        let response;
+
+        try {
+            response = await fetchImpl(url);
+        } catch (error) {
+            const isLastAttempt =
+                attempt === MAX_REQUEST_ATTEMPTS - 1;
+
+            if (isLastAttempt) {
+                throw error;
+            }
+
+            await delayImpl(
+                RETRY_DELAYS_MS[attempt]
+            );
+
+            continue;
+        }
+
+        if (response.ok) {
+            return response;
+        }
+
+        const error = new Error(
+            `FMI request failed with HTTP ${response.status} ${response.statusText}`
+        );
+
+        const isLastAttempt =
+            attempt === MAX_REQUEST_ATTEMPTS - 1;
+
+        if (
+            isLastAttempt ||
+            !isRetryableHttpStatus(response.status)
+        ) {
+            throw error;
+        }
+
+        await delayImpl(
+            RETRY_DELAYS_MS[attempt]
+        );
+    }
+
+    /*
+     * The loop always either returns a successful response or throws.
+     * This guard exists only as defensive protection against future changes.
+     */
+    throw new Error("FMI request failed unexpectedly");
+}
 
 /**
  * Build an FMI HARMONIE point-forecast URL.
@@ -96,27 +221,27 @@ export function buildFmiObservationUrl(place) {
 /**
  * Fetch raw FMI HARMONIE point-forecast XML.
  *
- * A fetch implementation can be injected for deterministic unit testing.
- * In normal use, the built-in Node.js fetch implementation is used.
+ * A fetch implementation and retry delay implementation can be injected for
+ * deterministic unit testing. Normal use relies on Node.js fetch and real
+ * timer delays.
  *
  * @param {string} place FMI place name.
  * @param {Function} fetchImpl Fetch-compatible function.
+ * @param {Function} delayImpl Delay function used between retries.
  * @returns {Promise<string>} Raw FMI WFS XML response.
- * @throws {Error} If FMI returns a non-successful HTTP response.
  */
-export async function fetchFmiForecast(place, fetchImpl = fetch) {
-    if (typeof fetchImpl !== "function") {
-        throw new TypeError("fetchImpl must be a function");
-    }
-
+export async function fetchFmiForecast(
+    place,
+    fetchImpl = fetch,
+    delayImpl = delay
+) {
     const url = buildFmiForecastUrl(place);
-    const response = await fetchImpl(url);
 
-    if (!response.ok) {
-        throw new Error(
-            `FMI request failed with HTTP ${response.status} ${response.statusText}`
-        );
-    }
+    const response = await fetchFmiResponse(
+        url,
+        fetchImpl,
+        delayImpl
+    );
 
     return response.text();
 }
@@ -126,22 +251,21 @@ export async function fetchFmiForecast(place, fetchImpl = fetch) {
  *
  * @param {string} place FMI place name.
  * @param {Function} fetchImpl Fetch-compatible function.
+ * @param {Function} delayImpl Delay function used between retries.
  * @returns {Promise<string>} Raw FMI WFS XML response.
- * @throws {Error} If FMI returns a non-successful HTTP response.
  */
-export async function fetchFmiObservations(place, fetchImpl = fetch) {
-    if (typeof fetchImpl !== "function") {
-        throw new TypeError("fetchImpl must be a function");
-    }
-
+export async function fetchFmiObservations(
+    place,
+    fetchImpl = fetch,
+    delayImpl = delay
+) {
     const url = buildFmiObservationUrl(place);
-    const response = await fetchImpl(url);
 
-    if (!response.ok) {
-        throw new Error(
-            `FMI request failed with HTTP ${response.status} ${response.statusText}`
-        );
-    }
+    const response = await fetchFmiResponse(
+        url,
+        fetchImpl,
+        delayImpl
+    );
 
     return response.text();
 }

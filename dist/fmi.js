@@ -25,6 +25,51 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/fmi-client.js
+function delay(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+function isRetryableHttpStatus(status) {
+  return status === 408 || status === 429 || status >= 500 && status <= 599;
+}
+async function fetchFmiResponse(url, fetchImpl, delayImpl) {
+  if (typeof fetchImpl !== "function") {
+    throw new TypeError("fetchImpl must be a function");
+  }
+  if (typeof delayImpl !== "function") {
+    throw new TypeError("delayImpl must be a function");
+  }
+  for (let attempt = 0; attempt < MAX_REQUEST_ATTEMPTS; attempt += 1) {
+    let response;
+    try {
+      response = await fetchImpl(url);
+    } catch (error2) {
+      const isLastAttempt2 = attempt === MAX_REQUEST_ATTEMPTS - 1;
+      if (isLastAttempt2) {
+        throw error2;
+      }
+      await delayImpl(
+        RETRY_DELAYS_MS[attempt]
+      );
+      continue;
+    }
+    if (response.ok) {
+      return response;
+    }
+    const error = new Error(
+      `FMI request failed with HTTP ${response.status} ${response.statusText}`
+    );
+    const isLastAttempt = attempt === MAX_REQUEST_ATTEMPTS - 1;
+    if (isLastAttempt || !isRetryableHttpStatus(response.status)) {
+      throw error;
+    }
+    await delayImpl(
+      RETRY_DELAYS_MS[attempt]
+    );
+  }
+  throw new Error("FMI request failed unexpectedly");
+}
 function buildFmiForecastUrl(place) {
   if (typeof place !== "string" || place.trim() === "") {
     throw new TypeError("FMI place must be a non-empty string");
@@ -54,33 +99,25 @@ function buildFmiObservationUrl(place) {
   }).toString();
   return url;
 }
-async function fetchFmiForecast(place, fetchImpl = fetch) {
-  if (typeof fetchImpl !== "function") {
-    throw new TypeError("fetchImpl must be a function");
-  }
+async function fetchFmiForecast(place, fetchImpl = fetch, delayImpl = delay) {
   const url = buildFmiForecastUrl(place);
-  const response = await fetchImpl(url);
-  if (!response.ok) {
-    throw new Error(
-      `FMI request failed with HTTP ${response.status} ${response.statusText}`
-    );
-  }
+  const response = await fetchFmiResponse(
+    url,
+    fetchImpl,
+    delayImpl
+  );
   return response.text();
 }
-async function fetchFmiObservations(place, fetchImpl = fetch) {
-  if (typeof fetchImpl !== "function") {
-    throw new TypeError("fetchImpl must be a function");
-  }
+async function fetchFmiObservations(place, fetchImpl = fetch, delayImpl = delay) {
   const url = buildFmiObservationUrl(place);
-  const response = await fetchImpl(url);
-  if (!response.ok) {
-    throw new Error(
-      `FMI request failed with HTTP ${response.status} ${response.statusText}`
-    );
-  }
+  const response = await fetchFmiResponse(
+    url,
+    fetchImpl,
+    delayImpl
+  );
   return response.text();
 }
-var FMI_WFS_URL, HARMONIE_POINT_FORECAST_QUERY, HARMONIE_FORECAST_PARAMETERS, WEATHER_OBSERVATION_QUERY;
+var FMI_WFS_URL, HARMONIE_POINT_FORECAST_QUERY, HARMONIE_FORECAST_PARAMETERS, WEATHER_OBSERVATION_QUERY, MAX_REQUEST_ATTEMPTS, RETRY_DELAYS_MS;
 var init_fmi_client = __esm({
   "src/fmi-client.js"() {
     FMI_WFS_URL = "https://opendata.fmi.fi/wfs";
@@ -99,6 +136,11 @@ var init_fmi_client = __esm({
       "WeatherSymbol3"
     ].join(",");
     WEATHER_OBSERVATION_QUERY = "fmi::observations::weather::timevaluepair";
+    MAX_REQUEST_ATTEMPTS = 3;
+    RETRY_DELAYS_MS = [
+      500,
+      1e3
+    ];
   }
 });
 
