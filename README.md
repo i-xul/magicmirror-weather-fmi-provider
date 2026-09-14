@@ -8,6 +8,12 @@ using open weather data from the
 The provider supplies current weather observations and daily forecasts without
 requiring an API key.
 
+## Screenshot
+
+![MagicMirror² FMI weather provider](docs/images/magicmirror-fmi-provider.png)
+
+MagicMirror² weather module using FMI Open Data for current conditions and daily forecasts.
+
 ## Features
 
 - Current weather observations from FMI
