@@ -3,7 +3,7 @@
  * Repository: https://github.com/i-xul/magicmirror-weather-fmi-provider
  * File: src/magicmirror-forecast.js
  * Created: 2026-09-13
- * Version: 0.1.0
+ * Version: 0.2.0
  *
  * Purpose:
  * Convert the normalized hourly FMI HARMONIE forecast timeline into daily
@@ -236,6 +236,16 @@ export function buildDailyForecastObjects(
                 representativeWeather.weatherType
         });
     }
+
+    /*
+     * Do not rely on the input timeline already being chronological.
+     * MagicMirror² should receive daily forecast objects in ascending
+     * timestamp order regardless of the source entry order.
+     */
+    forecast.sort(
+        (a, b) =>
+            a.date.getTime() - b.date.getTime()
+    );
 
     return forecast;
 }

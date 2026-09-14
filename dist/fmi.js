@@ -7493,6 +7493,9 @@ function buildDailyForecastObjects(forecastTimeline, timeZone) {
       weatherType: representativeWeather.weatherType
     });
   }
+  forecast.sort(
+    (a, b) => a.date.getTime() - b.date.getTime()
+  );
   return forecast;
 }
 var init_magicmirror_forecast = __esm({

@@ -101,6 +101,50 @@ test("groups forecast entries by local calendar day", () => {
     assert.equal(forecast[1].maxTemperature, 11);
 });
 
+test("returns forecast days in chronological order", () => {
+    const timeline = [
+        {
+            /*
+             * September 16 is intentionally provided first.
+             */
+            time: "2026-09-16T09:00:00Z",
+            temperature: 16,
+            precipitation: 0,
+            weatherSymbol: 1
+        },
+        {
+            time: "2026-09-14T09:00:00Z",
+            temperature: 14,
+            precipitation: 0,
+            weatherSymbol: 1
+        },
+        {
+            time: "2026-09-15T09:00:00Z",
+            temperature: 15,
+            precipitation: 0,
+            weatherSymbol: 1
+        }
+    ];
+
+    const forecast = buildDailyForecastObjects(
+        timeline,
+        "Europe/Helsinki"
+    );
+
+    assert.equal(forecast.length, 3);
+
+    assert.deepEqual(
+        forecast.map(
+            (entry) => entry.date.toISOString()
+        ),
+        [
+            "2026-09-14T09:00:00.000Z",
+            "2026-09-15T09:00:00.000Z",
+            "2026-09-16T09:00:00.000Z"
+        ]
+    );
+});
+
 test("selects weather symbol nearest to local noon", () => {
     const timeline = [
         {
