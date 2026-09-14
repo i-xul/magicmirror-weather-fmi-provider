@@ -3,7 +3,7 @@
  * Repository: https://github.com/i-xul/magicmirror-weather-fmi-provider
  * File: src/fmi-service.js
  * Created: 2026-09-13
- * Version: 0.1.0
+ * Version: 0.2.0
  *
  * Purpose:
  * Provide a high-level weather interface for FMI data consumers such as
@@ -13,7 +13,8 @@
  * 1. Fetch raw FMI XML.
  * 2. Parse FMI time-series parameters.
  * 3. Normalize the parameters into a common weather timeline.
- * 4. Return either the latest observation or the forecast timeline.
+ * 4. Share short-lived forecast data between consumers in the same process.
+ * 5. Return either the latest observation or the forecast timeline.
  */
 
 import {
@@ -23,6 +24,22 @@ import {
 
 import { parseFmiTimeValuePairXml } from "./fmi-parser.js";
 import { buildWeatherTimeline } from "./fmi-weather.js";
+
+const FORECAST_CACHE_TTL_MS = 30_000;
+
+/*
+ * Cache only the most recent forecast request for each place.
+ *
+ * The fetch implementation is stored with the cache entry so deterministic
+ * tests using different injected fake fetch functions cannot accidentally
+ * share cached data.
+ *
+ * Each entry can contain either:
+ *
+ * - an in-flight Promise while an FMI request is running
+ * - a completed timeline with a short expiration time
+ */
+const forecastCache = new Map();
 
 /**
  * Check whether an FMI observation contains all measured values required
@@ -74,16 +91,104 @@ export async function getCurrentWeather(place, fetchImpl = fetch) {
 }
 
 /**
+ * Fetch and normalize an FMI HARMONIE forecast timeline without using cache.
+ *
+ * Keeping the actual request in a separate helper makes the cache lifecycle
+ * easier to reason about and ensures failed requests can be removed cleanly.
+ *
+ * @param {string} place FMI place name.
+ * @param {Function} fetchImpl Fetch-compatible function.
+ * @returns {Promise<object[]>} Chronological normalized forecast timeline.
+ */
+async function fetchForecastTimeline(place, fetchImpl) {
+    const xml = await fetchFmiForecast(place, fetchImpl);
+
+    const parameters = parseFmiTimeValuePairXml(xml);
+
+    return buildWeatherTimeline(parameters);
+}
+
+/**
  * Fetch and normalize the FMI HARMONIE forecast timeline.
+ *
+ * Forecast data is cached briefly so multiple MagicMirror² weather provider
+ * instances for the same place can share one FMI request.
+ *
+ * The cache also stores an in-flight Promise. This means simultaneous current
+ * and forecast updates are deduplicated instead of starting two identical FMI
+ * forecast requests.
+ *
+ * Failed requests are never retained in the cache.
  *
  * @param {string} place FMI place name.
  * @param {Function} fetchImpl Fetch-compatible function.
  * @returns {Promise<object[]>} Chronological normalized forecast timeline.
  */
 export async function getForecast(place, fetchImpl = fetch) {
-    const xml = await fetchFmiForecast(place, fetchImpl);
+    const cached = forecastCache.get(place);
+    const now = Date.now();
 
-    const parameters = parseFmiTimeValuePairXml(xml);
+    if (
+        cached &&
+        cached.fetchImpl === fetchImpl
+    ) {
+        if (cached.promise) {
+            return cached.promise;
+        }
 
-    return buildWeatherTimeline(parameters);
+        if (
+            cached.timeline &&
+            cached.expiresAt > now
+        ) {
+            return cached.timeline;
+        }
+    }
+
+    const requestPromise = fetchForecastTimeline(
+        place,
+        fetchImpl
+    );
+
+    forecastCache.set(place, {
+        fetchImpl,
+        promise: requestPromise,
+        timeline: null,
+        expiresAt: 0
+    });
+
+    try {
+        const timeline = await requestPromise;
+
+        /*
+         * Only replace the cache entry if it still belongs to this request.
+         * This avoids an older request overwriting a newer entry if callers
+         * use different injected fetch implementations for the same place.
+         */
+        const currentEntry = forecastCache.get(place);
+
+        if (
+            currentEntry &&
+            currentEntry.promise === requestPromise
+        ) {
+            forecastCache.set(place, {
+                fetchImpl,
+                promise: null,
+                timeline,
+                expiresAt: Date.now() + FORECAST_CACHE_TTL_MS
+            });
+        }
+
+        return timeline;
+    } catch (error) {
+        const currentEntry = forecastCache.get(place);
+
+        if (
+            currentEntry &&
+            currentEntry.promise === requestPromise
+        ) {
+            forecastCache.delete(place);
+        }
+
+        throw error;
+    }
 }

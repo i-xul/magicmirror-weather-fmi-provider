@@ -4576,16 +4576,60 @@ async function getCurrentWeather(place, fetchImpl = fetch) {
   }
   return null;
 }
-async function getForecast(place, fetchImpl = fetch) {
+async function fetchForecastTimeline(place, fetchImpl) {
   const xml = await fetchFmiForecast(place, fetchImpl);
   const parameters = parseFmiTimeValuePairXml(xml);
   return buildWeatherTimeline(parameters);
 }
+async function getForecast(place, fetchImpl = fetch) {
+  const cached = forecastCache.get(place);
+  const now = Date.now();
+  if (cached && cached.fetchImpl === fetchImpl) {
+    if (cached.promise) {
+      return cached.promise;
+    }
+    if (cached.timeline && cached.expiresAt > now) {
+      return cached.timeline;
+    }
+  }
+  const requestPromise = fetchForecastTimeline(
+    place,
+    fetchImpl
+  );
+  forecastCache.set(place, {
+    fetchImpl,
+    promise: requestPromise,
+    timeline: null,
+    expiresAt: 0
+  });
+  try {
+    const timeline = await requestPromise;
+    const currentEntry = forecastCache.get(place);
+    if (currentEntry && currentEntry.promise === requestPromise) {
+      forecastCache.set(place, {
+        fetchImpl,
+        promise: null,
+        timeline,
+        expiresAt: Date.now() + FORECAST_CACHE_TTL_MS
+      });
+    }
+    return timeline;
+  } catch (error) {
+    const currentEntry = forecastCache.get(place);
+    if (currentEntry && currentEntry.promise === requestPromise) {
+      forecastCache.delete(place);
+    }
+    throw error;
+  }
+}
+var FORECAST_CACHE_TTL_MS, forecastCache;
 var init_fmi_service = __esm({
   "src/fmi-service.js"() {
     init_fmi_client();
     init_fmi_parser();
     init_fmi_weather();
+    FORECAST_CACHE_TTL_MS = 3e4;
+    forecastCache = /* @__PURE__ */ new Map();
   }
 });
 

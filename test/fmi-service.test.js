@@ -67,6 +67,101 @@ test("returns normalized FMI forecast timeline", async () => {
     assert.equal(typeof forecast[0].temperature, "number");
 });
 
+test("deduplicates simultaneous forecast requests", async () => {
+    let fetchCount = 0;
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, 10);
+        });
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => forecastFixture
+        };
+    };
+
+    const [
+        firstForecast,
+        secondForecast
+    ] = await Promise.all([
+        getForecast("Helsinki", fakeFetch),
+        getForecast("Helsinki", fakeFetch)
+    ]);
+
+    assert.equal(fetchCount, 1);
+    assert.strictEqual(firstForecast, secondForecast);
+});
+
+test("reuses recently fetched forecast data", async () => {
+    let fetchCount = 0;
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => forecastFixture
+        };
+    };
+
+    const firstForecast = await getForecast(
+        "Helsinki",
+        fakeFetch
+    );
+
+    const secondForecast = await getForecast(
+        "Helsinki",
+        fakeFetch
+    );
+
+    assert.equal(fetchCount, 1);
+    assert.strictEqual(firstForecast, secondForecast);
+});
+
+test("does not cache failed forecast requests", async () => {
+    let fetchCount = 0;
+
+    const fakeFetch = async () => {
+        fetchCount += 1;
+
+        if (fetchCount === 1) {
+            return {
+                ok: false,
+                status: 503,
+                statusText: "Service Unavailable",
+                text: async () => ""
+            };
+        }
+
+        return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            text: async () => forecastFixture
+        };
+    };
+
+    await assert.rejects(
+        getForecast("Helsinki", fakeFetch),
+        /FMI request failed with HTTP 503 Service Unavailable/
+    );
+
+    const forecast = await getForecast(
+        "Helsinki",
+        fakeFetch
+    );
+
+    assert.equal(fetchCount, 2);
+    assert.ok(forecast.length > 0);
+});
+
 test("skips newer incomplete observations", async () => {
     const xml = `
         <wfs:FeatureCollection

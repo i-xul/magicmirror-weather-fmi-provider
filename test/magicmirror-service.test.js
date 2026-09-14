@@ -300,6 +300,185 @@ test("fetches FMI data and builds MagicMirror weather data", async () => {
     );
 });
 
+test("shares forecast request between current and forecast types", async () => {
+    const observationXml = buildFeatureCollection([
+        buildSeriesMember(
+            "t2m",
+            [
+                [
+                    "2026-09-13T13:30:00Z",
+                    15.6
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "rh",
+            [
+                [
+                    "2026-09-13T13:30:00Z",
+                    89
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "wd_10min",
+            [
+                [
+                    "2026-09-13T13:30:00Z",
+                    245
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "ws_10min",
+            [
+                [
+                    "2026-09-13T13:30:00Z",
+                    2.9
+                ]
+            ]
+        )
+    ]);
+
+    const forecastXml = buildFeatureCollection([
+        buildSeriesMember(
+            "Temperature",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    16
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    15
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "Precipitation1h",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    0.25
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    0.5
+                ]
+            ]
+        ),
+        buildSeriesMember(
+            "WeatherSymbol3",
+            [
+                [
+                    "2026-09-13T13:00:00Z",
+                    2
+                ],
+                [
+                    "2026-09-13T14:00:00Z",
+                    2
+                ]
+            ]
+        )
+    ]);
+
+    let observationRequestCount = 0;
+    let forecastRequestCount = 0;
+
+    const fakeFetch = async (url) => {
+        const parsedUrl = new URL(String(url));
+        const storedQueryId =
+            parsedUrl.searchParams.get("storedquery_id");
+
+        if (
+            storedQueryId ===
+            "fmi::observations::weather::timevaluepair"
+        ) {
+            observationRequestCount += 1;
+
+            return {
+                ok: true,
+                status: 200,
+                statusText: "OK",
+                text: async () => observationXml
+            };
+        }
+
+        if (
+            storedQueryId ===
+            "fmi::forecast::harmonie::surface::point::timevaluepair"
+        ) {
+            forecastRequestCount += 1;
+
+            /*
+             * Keep the forecast request in flight briefly so both service
+             * calls overlap and exercise promise deduplication.
+             */
+            await new Promise((resolve) => {
+                setTimeout(resolve, 10);
+            });
+
+            return {
+                ok: true,
+                status: 200,
+                statusText: "OK",
+                text: async () => forecastXml
+            };
+        }
+
+        throw new Error(
+            `Unexpected FMI URL: ${String(url)}`
+        );
+    };
+
+    const commonConfig = {
+        place: "Helsinki",
+        latitude: 60.1699,
+        longitude: 24.9384,
+        timeZone: "Europe/Helsinki"
+    };
+
+    const [
+        currentWeather,
+        forecastWeather
+    ] = await Promise.all([
+        getMagicMirrorWeather(
+            {
+                ...commonConfig,
+                type: "current"
+            },
+            fakeFetch
+        ),
+        getMagicMirrorWeather(
+            {
+                ...commonConfig,
+                type: "forecast"
+            },
+            fakeFetch
+        )
+    ]);
+
+    assert.equal(observationRequestCount, 1);
+    assert.equal(forecastRequestCount, 1);
+
+    assert.ok(currentWeather.current);
+    assert.equal(
+        currentWeather.current.temperature,
+        15.6
+    );
+
+    assert.equal(forecastWeather.current, null);
+
+    assert.equal(
+        currentWeather.forecast.length,
+        1
+    );
+    assert.equal(
+        forecastWeather.forecast.length,
+        1
+    );
+});
+
 test("fetches only forecast data for forecast type", async () => {
     const forecastXml = buildFeatureCollection([
         buildSeriesMember(
