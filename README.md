@@ -376,7 +376,7 @@ Data source:
 More information:
 
 - https://en.ilmatieteenlaitos.fi/open-data
-- https://en.ilmatieteenlaitos.fi/open-data-licence
+- https://en.ilmatieteenlaitos.fi/site-information
 
 This repository contains FMI-derived test fixtures for development and testing.
 Their weather data remains subject to the applicable FMI Open Data licence and

@@ -1,7 +1,7 @@
 /**
  * Author: H A (i-xul)
  * Repository: https://github.com/i-xul/magicmirror-weather-fmi-provider
- * File: test/fmi-live.test.js
+ * File: test/fmi-live.integration.js
  * Created: 2026-09-13
  * Version: 0.1.0
  *
